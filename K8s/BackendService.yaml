@@ -1,0 +1,70 @@
+# Kubernetes Backend Service Deployment (Node.js & WebSocket)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airroute-backend
+  namespace: airroute-system
+  labels:
+    app: airroute-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: airroute-backend
+  template:
+    metadata:
+      labels:
+        app: airroute-backend
+    spec:
+      containers:
+        - name: backend-server
+          image: airroute-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: airroute-config
+            - secretRef:
+                name: airroute-secret
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 800m
+              memory: 1024Mi
+          volumeMounts:
+            - name: db-storage
+              mountPath: /app/data
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: airroute-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airroute-backend
+  namespace: airroute-system
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: 5000
+      name: http
+  selector:
+    app: airroute-backend

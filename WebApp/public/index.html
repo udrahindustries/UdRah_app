@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AirRoute // Tactical AQI & IoT Hardware Command Terminal</title>
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="cyber-theme">
+  <div id="app-container">
+
+    <!-- Top Tactical Navigation Bar -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand" id="brand-home-btn">
+          <div class="brand-glyph">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <div class="brand-title">AIRROUTE <span class="tag-cyber">// TACTICAL-AQI</span></div>
+            <div class="brand-sub">DELHI-NCR SECTOR COMMAND</div>
+          </div>
+        </div>
+
+        <!-- View Switcher: Map vs Admin Console -->
+        <div class="view-switcher">
+          <button id="view-tab-map" class="view-btn active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
+            MAP RADAR
+          </button>
+          <button id="view-tab-admin" class="view-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            ADMIN CONSOLE
+          </button>
+        </div>
+
+        <!-- Layer Toggles (Active in Map View) -->
+        <nav class="layer-nav" id="map-layer-controls">
+          <button id="toggle-aqi-surface" class="nav-btn active" title="Phase 1: Continuous 2D Spatial AQI Surface Grid (Model 3)">
+            <span class="hud-led led-cyan"></span> MODEL 3 SURFACE
+          </button>
+          <button id="toggle-stations" class="nav-btn active" title="Phase 1: Physical CAAQMS Sensor Network">
+            <span class="hud-led led-amber"></span> FIXED STATIONS
+          </button>
+          <button id="toggle-discovery" class="nav-btn active" title="Phase 2: Nearby AirRoute Products Discovery (Privacy Masked)">
+            <span class="hud-led led-green"></span> DISCOVERY MAP
+          </button>
+        </nav>
+      </div>
+
+      <div class="header-right">
+        <!-- Live WebSocket Heartbeat HUD -->
+        <div class="hud-badge ws-badge" id="ws-status" title="Real-time WebSocket Live Feed">
+          <span class="hud-led led-green pulse"></span>
+          <span id="ws-status-text">FEED: SYNCHRONIZED</span>
+        </div>
+
+        <!-- My Devices Dashboard Drawer Trigger -->
+        <button id="btn-open-dashboard" class="hud-btn hud-btn-cyan">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="4" y="4" width="16" height="16" rx="2"/>
+            <rect x="9" y="9" width="6" height="6"/>
+            <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
+            <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
+            <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>
+            <line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>
+          </svg>
+          MY HARDWARE [<span id="my-device-count">0</span>]
+        </button>
+
+        <div id="auth-controls">
+          <button id="btn-login" class="hud-btn hud-btn-primary">SIGN IN</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN VIEW CONTAINER 1: MAP VIEWPORT -->
+    <main class="view-panel" id="panel-map-view">
+      <div id="map"></div>
+
+      <!-- Tactical Map Legend & CPCB NAQI HUD -->
+      <aside class="tactical-hud" id="aqi-legend">
+        <div class="hud-corner-tl"></div><div class="hud-corner-tr"></div>
+        <div class="hud-corner-bl"></div><div class="hud-corner-br"></div>
+        
+        <div class="hud-title-bar">
+          <span class="hud-tag">DELHI NCR AIR MONITORING</span>
+          <span class="hud-model-tag">STAGE 2 XGBOOST RESIDUAL</span>
+        </div>
+
+        <div class="cpcb-scale-container">
+          <div class="scale-bar">
+            <div class="scale-step c-good" title="0-50: Good"><span>50</span></div>
+            <div class="scale-step c-sat" title="51-100: Satisfactory"><span>100</span></div>
+            <div class="scale-step c-mod" title="101-200: Moderate"><span>200</span></div>
+            <div class="scale-step c-poor" title="201-300: Poor"><span>300</span></div>
+            <div class="scale-step c-vpoor" title="301-400: Very Poor"><span>400</span></div>
+            <div class="scale-step c-sev" title="401-500: Severe"><span>500</span></div>
+          </div>
+          <div class="scale-labels">
+            <span>GOOD</span><span>SATISFACTORY</span><span>MODERATE</span><span>POOR</span><span>VERY POOR</span><span>SEVERE</span>
+          </div>
+        </div>
+
+        <div class="hud-footer-note">
+          <span class="glyph-radar">◉</span> CLICK ANY COORDINATE FOR REAL-TIME SPATIAL ESTIMATION
+        </div>
+      </aside>
+
+      <!-- Floating Point Prediction Tactical Card (Triggered by Map Click) -->
+      <div class="point-hud-card hidden" id="point-inspector">
+        <div class="hud-corner-tl"></div><div class="hud-corner-tr"></div>
+        <div class="hud-corner-bl"></div><div class="hud-corner-br"></div>
+        <button class="hud-close-btn" id="close-point-card">&times;</button>
+        
+        <div class="point-card-header">
+          <div class="point-title-group">
+            <span class="hud-label">COORDINATE SPATIAL ESTIMATE</span>
+            <div class="point-val-row">
+              <h2 id="point-aqi-value">---</h2>
+              <span class="aqi-cat-badge" id="point-category">UNKNOWN</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="point-telemetry-grid">
+          <div class="point-tile">
+            <span class="tile-label">ARCHITECTURE</span>
+            <strong id="point-stage">Model 3 (Stage 2)</strong>
+          </div>
+          <div class="point-tile">
+            <span class="tile-label">CONFIDENCE</span>
+            <strong id="point-confidence">--</strong>
+          </div>
+          <div class="point-tile">
+            <span class="tile-label">STAGE 1 IDW BASE</span>
+            <strong id="point-idw-base">--</strong>
+          </div>
+          <div class="point-tile">
+            <span class="tile-label">XGB RESIDUAL SHIFT</span>
+            <strong id="point-residual">--</strong>
+          </div>
+          <div class="point-tile">
+            <span class="tile-label">NEAREST SENSOR</span>
+            <strong id="point-nearest-dist">-- km</strong>
+          </div>
+          <div class="point-tile">
+            <span class="tile-label">DOMINANT POLLUTANT</span>
+            <strong id="point-dominant">PM2.5</strong>
+          </div>
+        </div>
+
+        <div class="point-coords-tag" id="point-coords-text">
+          28.631500°N, 77.216700°E
+        </div>
+      </div>
+    </main>
+
+    <!-- MAIN VIEW CONTAINER 2: ADMIN PANEL & FLEET COMMAND CONSOLE -->
+    <main class="view-panel hidden" id="panel-admin-view">
+      <div class="admin-layout">
+        <!-- Admin Sidebar Navigation -->
+        <aside class="admin-sidebar">
+          <div class="admin-profile-badge">
+            <span class="badge-icon">🛡️</span>
+            <div>
+              <div class="admin-name" id="admin-user-name">Administrator</div>
+              <div class="admin-role">SYSTEM LEVEL // ACCESS GRANTED</div>
+            </div>
+          </div>
+
+          <nav class="admin-nav">
+            <button class="admin-nav-item active" data-tab="admin-tab-overview">
+              <span class="nav-icon">📊</span> SYSTEM OVERVIEW
+            </button>
+            <button class="admin-nav-item" data-tab="admin-tab-fleet">
+              <span class="nav-icon">🛰️</span> HARDWARE FLEET [DEVICES]
+            </button>
+            <button class="admin-nav-item" data-tab="admin-tab-telemetry">
+              <span class="nav-icon">⚡</span> LIVE INGESTION STREAM
+            </button>
+            <button class="admin-nav-item" data-tab="admin-tab-users">
+              <span class="nav-icon">👥</span> USER ACCESS CONTROL
+            </button>
+            <button class="admin-nav-item" data-tab="admin-tab-ml">
+              <span class="nav-icon">🧠</span> MODEL 3 DIAGNOSTICS
+            </button>
+          </nav>
+        </aside>
+
+        <!-- Admin Content Area -->
+        <section class="admin-content-area">
+
+          <!-- TAB 1: System Overview -->
+          <div class="admin-tab-pane active" id="admin-tab-overview">
+            <div class="admin-pane-header">
+              <h2>FLEET TELEMETRY & SYSTEM ANALYTICS</h2>
+              <span class="hud-label">AIRROUTE NCR COMMAND DASHBOARD</span>
+            </div>
+
+            <div class="stat-tiles-row">
+              <div class="stat-tile">
+                <span class="stat-tile-label">REGISTERED USERS</span>
+                <div class="stat-tile-value" id="stat-total-users">--</div>
+                <small class="stat-tile-sub">Active Accounts</small>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-tile-label">HARDWARE FLEET</span>
+                <div class="stat-tile-value" id="stat-total-devices">--</div>
+                <small class="stat-tile-sub" id="stat-devices-online-ratio">-- Online</small>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-tile-label">PACKETS INGESTED</span>
+                <div class="stat-tile-value" id="stat-total-packets">--</div>
+                <small class="stat-tile-sub">Time-Series Telemetry</small>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-tile-label">MODEL 3 ENGINE</span>
+                <div class="stat-tile-value text-cyan">STAGE 2</div>
+                <small class="stat-tile-sub">XGBoost Residual Active</small>
+              </div>
+            </div>
+
+            <div class="admin-section-block">
+              <div class="block-header">
+                <h3>RECENT INCOMING TELEMETRY STREAM</h3>
+                <span class="hud-pill">REAL-TIME INGESTION</span>
+              </div>
+              <div class="table-container">
+                <table class="cyber-table">
+                  <thead>
+                    <tr>
+                      <th>PACKET ID</th>
+                      <th>DEVICE CODE</th>
+                      <th>HARDWARE NAME</th>
+                      <th>PM2.5 (µg/m³)</th>
+                      <th>PM10 (µg/m³)</th>
+                      <th>CO2 (ppm)</th>
+                      <th>TEMP (°C)</th>
+                      <th>HUMIDITY</th>
+                      <th>TIMESTAMP</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-recent-telemetry-rows">
+                    <tr><td colspan="9" class="text-center">Loading telemetry stream...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: Hardware Fleet Management -->
+          <div class="admin-tab-pane" id="admin-tab-fleet">
+            <div class="admin-pane-header">
+              <h2>HARDWARE FLEET & DEVICE REGISTRY</h2>
+              <button class="hud-btn hud-btn-primary" id="btn-provision-device">+ PROVISION NEW HARDWARE</button>
+            </div>
+
+            <div class="table-container">
+              <table class="cyber-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>SERIAL CODE</th>
+                    <th>PRODUCT NAME</th>
+                    <th>MODEL TYPE</th>
+                    <th>OWNER</th>
+                    <th>COORDINATES</th>
+                    <th>DISCOVERY</th>
+                    <th>STATUS</th>
+                    <th>PACKETS</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-fleet-device-rows">
+                  <tr><td colspan="10" class="text-center">Loading hardware fleet...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- TAB 3: Live Ingestion Stream -->
+          <div class="admin-tab-pane" id="admin-tab-telemetry">
+            <div class="admin-pane-header">
+              <h2>LIVE HARDWARE TELEMETRY LOGS</h2>
+              <div class="stream-controls">
+                <button class="hud-btn hud-btn-cyan" id="btn-refresh-stream">REFRESH STREAM</button>
+              </div>
+            </div>
+
+            <div class="terminal-log-box" id="admin-terminal-log">
+              <div class="log-line text-cyan">[SYSTEM] Ingestion Bridge Active on /api/iot/ingest</div>
+              <div class="log-line text-green">[SYSTEM] WebSocket Dispatcher Active on /ws</div>
+            </div>
+          </div>
+
+          <!-- TAB 4: User Access Control -->
+          <div class="admin-tab-pane" id="admin-tab-users">
+            <div class="admin-pane-header">
+              <h2>USER ACCOUNTS & ACCESS ROLES</h2>
+              <span class="hud-label">ROLE-BASED ACCESS CONTROL (RBAC)</span>
+            </div>
+
+            <div class="table-container">
+              <table class="cyber-table">
+                <thead>
+                  <tr>
+                    <th>USER ID</th>
+                    <th>FULL NAME</th>
+                    <th>EMAIL ADDRESS</th>
+                    <th>ASSIGNED ROLE</th>
+                    <th>OWNED DEVICES</th>
+                    <th>CREATED AT</th>
+                    <th>ACTION</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-user-rows">
+                  <tr><td colspan="7" class="text-center">Loading user accounts...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- TAB 5: Model 3 Diagnostics -->
+          <div class="admin-tab-pane" id="admin-tab-ml">
+            <div class="admin-pane-header">
+              <h2>MODEL 3: SPATIAL AQI ESTIMATION AUDIT</h2>
+              <span class="hud-pill">STAGE 1 IDW + STAGE 2 XGBOOST</span>
+            </div>
+
+            <div class="stat-tiles-row">
+              <div class="stat-tile">
+                <span class="stat-tile-label">MAE REDUCTION</span>
+                <div class="stat-tile-value text-green">-15.06%</div>
+                <small class="stat-tile-sub">27.63 -> 23.47 AQI Points</small>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-tile-label">RMSE REDUCTION</span>
+                <div class="stat-tile-value text-green">-15.87%</div>
+                <small class="stat-tile-sub">39.57 -> 33.29 Points</small>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-tile-label">CPCB ACCURACY</span>
+                <div class="stat-tile-value text-cyan">83.07%</div>
+                <small class="stat-tile-sub">+4.42% Category Agreement</small>
+              </div>
+              <div class="stat-tile">
+                <span class="stat-tile-label">MORAN'S I</span>
+                <div class="stat-tile-value text-cyan">-0.0728</div>
+                <small class="stat-tile-sub">Spatially Random Residuals</small>
+              </div>
+            </div>
+
+            <div class="admin-section-block">
+              <div class="block-header">
+                <h3>STAGE 2 FEATURE IMPORTANCE & PARAMETERS</h3>
+              </div>
+              <div class="terminal-log-box" id="admin-ml-manifest">
+                <div class="log-line text-cyan">[MODEL] Features: 31 Contextual Channels (Multi-Pollutant, Meteorology, Dispersion, Rush-Hour)</div>
+                <div class="log-line text-green">[ACCEPTANCE GATE] PASSED (Statistically Significant Error Reduction On Unseen Holdout Targets)</div>
+              </div>
+            </div>
+          </div>
+
+        </section>
+      </div>
+    </main>
+
+    <!-- PHASE 3: MY DEVICES PRIVATE HARDWARE DRAWER -->
+    <div class="tactical-drawer hidden" id="dashboard-drawer">
+      <div class="drawer-header">
+        <div class="drawer-header-left">
+          <div class="drawer-title">MY AIRROUTE HARDWARE</div>
+          <div class="drawer-sub">PRIVATE TELEMETRY & LIVE SENSOR TELEMETRY</div>
+        </div>
+        <div class="drawer-header-right">
+          <button id="btn-register-device" class="hud-btn hud-btn-cyan">+ CLAIM DEVICE</button>
+          <button id="btn-close-dashboard" class="hud-close-btn">&times;</button>
+        </div>
+      </div>
+
+      <div class="drawer-body">
+        <!-- Account Strip & Simulator Trigger -->
+        <div class="account-hud-strip">
+          <div class="user-meta">
+            <span class="meta-label">AUTHENTICATED AS:</span>
+            <strong id="user-display-email" class="text-cyan">demo@airroute.io</strong>
+          </div>
+          <button id="btn-simulate-packet" class="hud-btn hud-btn-amber" title="Send a simulated sensor transmission from this hardware">
+            ⚡ TRANSMIT SENSOR BURST
+          </button>
+        </div>
+
+        <!-- Registered Devices Card List -->
+        <div class="device-fleet-list" id="device-cards-list">
+          <div class="loading-state">Querying hardware registry...</div>
+        </div>
+
+        <!-- Telemetry Details & Trend Waveform Chart -->
+        <div class="telemetry-hud-section hidden" id="device-detail-section">
+          <div class="detail-header">
+            <div>
+              <h3 id="active-device-title">Device Telemetry</h3>
+              <span id="active-device-code" class="hud-sub">Code: AIR-PRO-001</span>
+            </div>
+            <div class="privacy-toggle-box">
+              <label class="cyber-switch">
+                <input type="checkbox" id="toggle-optin-discovery">
+                <span class="slider"></span>
+              </label>
+              <span class="switch-label">Public Discovery</span>
+            </div>
+          </div>
+
+          <div class="hud-metrics-matrix" id="live-metrics-hud">
+            <div class="matrix-card">
+              <span class="m-label">PM2.5</span>
+              <span class="m-val" id="metric-pm25">--</span>
+              <span class="m-unit">µg/m³</span>
+            </div>
+            <div class="matrix-card">
+              <span class="m-label">PM10</span>
+              <span class="m-val" id="metric-pm10">--</span>
+              <span class="m-unit">µg/m³</span>
+            </div>
+            <div class="matrix-card">
+              <span class="m-label">CO2</span>
+              <span class="m-val text-amber" id="metric-co2">--</span>
+              <span class="m-unit">ppm</span>
+            </div>
+            <div class="matrix-card">
+              <span class="m-label">TEMP</span>
+              <span class="m-val" id="metric-temp">--</span>
+              <span class="m-unit">°C</span>
+            </div>
+            <div class="matrix-card">
+              <span class="m-label">HUMIDITY</span>
+              <span class="m-val" id="metric-hum">--</span>
+              <span class="m-unit">%</span>
+            </div>
+          </div>
+
+          <div class="waveform-chart-box">
+            <canvas id="telemetryChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: REGISTER / CLAIM DEVICE -->
+    <div class="modal-backdrop hidden" id="modal-register">
+      <div class="cyber-modal">
+        <div class="hud-corner-tl"></div><div class="hud-corner-tr"></div>
+        <div class="hud-corner-bl"></div><div class="hud-corner-br"></div>
+        <div class="modal-header">
+          <h3>CLAIM AIRROUTE HARDWARE PRODUCT</h3>
+          <button class="hud-close-btn" id="close-register-modal">&times;</button>
+        </div>
+        <form id="form-register-device" class="modal-form">
+          <div class="form-group">
+            <label>DEVICE SERIAL CODE</label>
+            <input type="text" id="reg-device-code" placeholder="e.g. AIR-PRO-004" required>
+            <small>Laser engraved on hardware base plate.</small>
+          </div>
+          <div class="form-group">
+            <label>HARDWARE SECRET KEY</label>
+            <input type="password" id="reg-auth-key" placeholder="e.g. KEY-PRO-004" required>
+            <small>Pre-shared secret printed on physical packaging.</small>
+          </div>
+          <div class="form-group">
+            <label>CUSTOM IDENTIFIER NAME</label>
+            <input type="text" id="reg-custom-name" placeholder="e.g. Balcony Air Quality Sensor">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>BASE LATITUDE</label>
+              <input type="number" step="0.0001" id="reg-lat" placeholder="28.6315">
+            </div>
+            <div class="form-group">
+              <label>BASE LONGITUDE</label>
+              <input type="number" step="0.0001" id="reg-lon" placeholder="77.2167">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="hud-btn hud-btn-secondary" id="cancel-register">CANCEL</button>
+            <button type="submit" class="hud-btn hud-btn-primary">AUTHORIZE & CLAIM</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: PROVISION NEW HARDWARE (ADMIN ONLY) -->
+    <div class="modal-backdrop hidden" id="modal-provision">
+      <div class="cyber-modal">
+        <div class="hud-corner-tl"></div><div class="hud-corner-tr"></div>
+        <div class="hud-corner-bl"></div><div class="hud-corner-br"></div>
+        <div class="modal-header">
+          <h3>PROVISION NEW AIRROUTE HARDWARE</h3>
+          <button class="hud-close-btn" id="close-provision-modal">&times;</button>
+        </div>
+        <form id="form-provision-device" class="modal-form">
+          <div class="form-group">
+            <label>SERIAL CODE</label>
+            <input type="text" id="prov-device-code" placeholder="e.g. AIR-PRO-007" required>
+          </div>
+          <div class="form-group">
+            <label>AUTH KEY</label>
+            <input type="text" id="prov-auth-key" placeholder="e.g. KEY-PRO-007" required>
+          </div>
+          <div class="form-group">
+            <label>HARDWARE NAME</label>
+            <input type="text" id="prov-name" placeholder="e.g. West Delhi Air Sentinel" required>
+          </div>
+          <div class="form-group">
+            <label>MODEL TYPE</label>
+            <select id="prov-model-type" class="cyber-select">
+              <option value="AirRoute Pro">AirRoute Pro (Stationary Multi-Channel)</option>
+              <option value="AirRoute Mini">AirRoute Mini (Home/Office Compact)</option>
+              <option value="AirRoute Pocket">AirRoute Pocket (Portable / Commuter)</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>LATITUDE</label>
+              <input type="number" step="0.0001" id="prov-lat" value="28.6500">
+            </div>
+            <div class="form-group">
+              <label>LONGITUDE</label>
+              <input type="number" step="0.0001" id="prov-lon" value="77.2000">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="hud-btn hud-btn-secondary" id="cancel-provision">CANCEL</button>
+            <button type="submit" class="hud-btn hud-btn-primary">PROVISION DEVICE</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: USER AUTHENTICATION -->
+    <div class="modal-backdrop hidden" id="modal-auth">
+      <div class="cyber-modal">
+        <div class="hud-corner-tl"></div><div class="hud-corner-tr"></div>
+        <div class="hud-corner-bl"></div><div class="hud-corner-br"></div>
+        <div class="modal-header">
+          <h3 id="auth-modal-title">ACCESS AIRROUTE COMMAND</h3>
+          <button class="hud-close-btn" id="close-auth-modal">&times;</button>
+        </div>
+        <form id="form-auth" class="modal-form">
+          <div class="form-group" id="group-fullname" style="display: none;">
+            <label>OPERATOR NAME</label>
+            <input type="text" id="auth-fullname" placeholder="Alex Morgan">
+          </div>
+          <div class="form-group">
+            <label>TERMINAL EMAIL</label>
+            <input type="email" id="auth-email" placeholder="admin@airroute.io" required value="admin@airroute.io">
+          </div>
+          <div class="form-group">
+            <label>SECURITY PASSPHRASE</label>
+            <input type="password" id="auth-password" placeholder="Password123!" required value="Password123!">
+          </div>
+          <div class="auth-toggle-note">
+            <span id="auth-mode-desc">New terminal operator?</span>
+            <a href="#" id="auth-mode-toggle">Register profile</a>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="hud-btn hud-btn-primary" id="auth-submit-btn">AUTHENTICATE</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Leaflet JavaScript -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Main Application Script -->
+  <script src="js/app.js"></script>
+</body>
+</html>

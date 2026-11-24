@@ -1,0 +1,9 @@
+# Kubernetes Namespace Definition For AirRoute Platform
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: airroute-system
+  labels:
+    app.kubernetes.io/name: airroute
+    app.kubernetes.io/part-of: airroute-platform
+    environment: production

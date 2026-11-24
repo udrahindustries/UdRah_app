@@ -1,0 +1,135 @@
+{
+  "status": "STAGE_2_COMPLETE_AND_AUDITED",
+  "acceptance_gate_passed": true,
+  "performance_improvement": {
+    "mae_reduction_points": 4.16,
+    "mae_reduction_percentage": 15.06,
+    "rmse_reduction_points": 6.28,
+    "rmse_reduction_percentage": 15.87,
+    "category_accuracy_gain_percentage": 4.42
+  },
+  "stage1_idw_metrics": {
+    "model_label": "Stage1_IDW_Baseline",
+    "sample_count": 13824,
+    "mae": 27.63,
+    "rmse": 39.57,
+    "r2": 0.8551,
+    "category_accuracy_pct": 78.65,
+    "tolerance_within_10_pct": 28.64,
+    "tolerance_within_20_pct": 50.46,
+    "tolerance_within_30_pct": 65.65
+  },
+  "stage2_xgb_metrics": {
+    "model_label": "Stage2_IDW_Plus_XGB",
+    "sample_count": 13824,
+    "mae": 23.47,
+    "rmse": 33.29,
+    "r2": 0.8975,
+    "category_accuracy_pct": 83.07,
+    "tolerance_within_10_pct": 32.77,
+    "tolerance_within_20_pct": 57.33,
+    "tolerance_within_30_pct": 72.89
+  },
+  "stratified_slices": {
+    "rush_hours": {
+      "model_label": "Rush_Hours",
+      "sample_count": 5184,
+      "mae": 23.31,
+      "rmse": 32.53,
+      "r2": 0.8771,
+      "category_accuracy_pct": 81.79,
+      "tolerance_within_10_pct": 32.23,
+      "tolerance_within_20_pct": 56.56,
+      "tolerance_within_30_pct": 72.8
+    },
+    "off_peak_hours": {
+      "model_label": "Off_Peak",
+      "sample_count": 8640,
+      "mae": 23.57,
+      "rmse": 33.74,
+      "r2": 0.9057,
+      "category_accuracy_pct": 83.84,
+      "tolerance_within_10_pct": 33.09,
+      "tolerance_within_20_pct": 57.79,
+      "tolerance_within_30_pct": 72.94
+    },
+    "severe_episodes": {
+      "model_label": "Severe_Episodes",
+      "sample_count": 11307,
+      "mae": 22.24,
+      "rmse": 32.05,
+      "r2": 0.7649,
+      "category_accuracy_pct": 84.86,
+      "tolerance_within_10_pct": 34.54,
+      "tolerance_within_20_pct": 60.13,
+      "tolerance_within_30_pct": 75.5
+    },
+    "normal_days": {
+      "model_label": "Normal_Days",
+      "sample_count": 2517,
+      "mae": 29.02,
+      "rmse": 38.4,
+      "r2": 0.6947,
+      "category_accuracy_pct": 75.05,
+      "tolerance_within_10_pct": 24.79,
+      "tolerance_within_20_pct": 44.74,
+      "tolerance_within_30_pct": 61.14
+    }
+  },
+  "spatial_residual_autocorrelation": {
+    "morans_i": -0.0728,
+    "expected_i": -0.0286,
+    "spatial_structure_detected": false
+  },
+  "hyperparameters": {
+    "n_estimators": 250,
+    "learning_rate": 0.05,
+    "max_depth": 5,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_alpha": 2.0,
+    "reg_lambda": 5.0,
+    "random_state": 42,
+    "n_jobs": -1,
+    "objective": "reg:squarederror"
+  },
+  "feature_manifest": [
+    "idw_aqi_direct",
+    "idw_aqi_pollutant_first",
+    "pollutant_diff",
+    "idw_pm2_5",
+    "idw_pm10",
+    "pm_ratio",
+    "valid_neighbor_count",
+    "nearest_distance_km",
+    "mean_distance_km",
+    "max_distance_km",
+    "neighbor_min_aqi",
+    "neighbor_mean_aqi",
+    "neighbor_max_aqi",
+    "neighbor_std_aqi",
+    "neighbor_spread",
+    "idw_vs_neighbor_mean",
+    "temperature",
+    "humidity",
+    "wind_speed",
+    "wind_dir_sin",
+    "wind_dir_cos",
+    "pressure",
+    "stagnation_index",
+    "hour",
+    "hour_sin",
+    "hour_cos",
+    "is_rush_hour",
+    "is_severe_episode",
+    "dist_center_km",
+    "target_lat",
+    "target_lon"
+  ],
+  "plots_generated": [
+    "C:\\Users\\i8o8i\\OneDrive\\Desktop\\UDRAH IDUSTRIES WORK\\Model3\\Results\\Plots\\XgbResidualFeatureImportance.png",
+    "C:\\Users\\i8o8i\\OneDrive\\Desktop\\UDRAH IDUSTRIES WORK\\Model3\\Results\\Plots\\Stage1VsStage2Comparison.png",
+    "C:\\Users\\i8o8i\\OneDrive\\Desktop\\UDRAH IDUSTRIES WORK\\Model3\\Results\\Plots\\Stage2PredictedVsActual.png",
+    "C:\\Users\\i8o8i\\OneDrive\\Desktop\\UDRAH IDUSTRIES WORK\\Model3\\Results\\Plots\\Stage2ResidualMap.png"
+  ]
+}

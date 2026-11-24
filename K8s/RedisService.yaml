@@ -1,0 +1,63 @@
+# Kubernetes Redis Deployment And Cluster Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airroute-redis
+  namespace: airroute-system
+  labels:
+    app: airroute-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airroute-redis
+  template:
+    metadata:
+      labels:
+        app: airroute-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: redis-storage
+              mountPath: /data
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: redis-storage
+          persistentVolumeClaim:
+            claimName: airroute-redis-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airroute-redis
+  namespace: airroute-system
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: redis
+  selector:
+    app: airroute-redis

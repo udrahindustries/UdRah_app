@@ -1,0 +1,28 @@
+# Kubernetes Persistent Volume Claims For Data And Cache Storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airroute-db-pvc
+  namespace: airroute-system
+  labels:
+    app.kubernetes.io/name: airroute
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airroute-redis-pvc
+  namespace: airroute-system
+  labels:
+    app.kubernetes.io/name: airroute
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

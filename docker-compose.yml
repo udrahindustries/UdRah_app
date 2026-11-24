@@ -1,0 +1,107 @@
+# Docker Compose Orchestration For AirRoute Corporate Platform
+# Strictly Conforms To Antigravity & Coolify Architecture Standards
+
+version: '3.8'
+
+services:
+  # 1. Edge Ingress & React Single Page Application
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: airroute-frontend
+    restart: unless-stopped
+    expose:
+      - "80" # Internal Port Exposure Only (No Host Port Collisions Per Coding Standards)
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - airroute-network
+
+  # 2. Node.js Express & Realtime WebSocket Backend
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: airroute-backend
+    restart: unless-stopped
+    expose:
+      - "5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - ML_SERVICE_URL=http://ml-service:8000
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=AirRoute_Corporate_Production_Hmac_Secret_Key_2026_Delhi
+    volumes:
+      - airroute_db_data:/app/data
+    depends_on:
+      ml-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:5000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - airroute-network
+
+  # 3. Model 3 Python FastAPI Geospatial Microservice
+  ml-service:
+    build:
+      context: .
+      dockerfile: MlService/Dockerfile
+    container_name: airroute-ml-service
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - airroute-network
+
+  # 4. Redis In-Memory Cache & Geospatial Storage
+  redis:
+    image: redis:7.4-alpine
+    container_name: airroute-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    expose:
+      - "6379"
+    volumes:
+      - airroute_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - airroute-network
+
+volumes:
+  airroute_db_data:
+    name: airroute_db_data
+  airroute_redis_data:
+    name: airroute_redis_data
+
+networks:
+  airroute-network:
+    name: airroute-network
+    driver: bridge
