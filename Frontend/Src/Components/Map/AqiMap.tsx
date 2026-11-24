@@ -2,7 +2,7 @@
 // Combines Model 3 Spatial Interpolation Surface, Fixed Stations, And Community Discovery Markers
 
 import React, { useEffect, useRef } from 'react';
-import { Layers, Sparkles } from 'lucide-react';
+import { Layers, Sparkles, Sliders } from 'lucide-react';
 import { AqiStation, DiscoveredDevice, SpatialEstimate } from '../../Services/ApiService';
 import { PointInspector } from './PointInspector';
 import { AqiLegend } from './AqiLegend';
@@ -97,13 +97,13 @@ export const AqiMap: React.FC<AqiMapProps> = ({
     };
   }, []);
 
-  // Update Surface Layer (Model 3 Interpolated Heatmap Surface)
+  // Update Surface Layer (Model 3 Interpolated Heatmap Surface - Smooth Contiguous Cloud)
   useEffect(() => {
     if (!mapInstanceRef.current || !surfaceLayerRef.current) return;
     surfaceLayerRef.current.clearLayers();
 
     if (activeLayers.surface && surfaceGeoJson?.features) {
-      // Use pointToLayer To Render Seamless Translucent Heat Circles Instead Of Default Blue Pin Icons
+      // Use pointToLayer With Radius 38 To Create A Contiguous Blended Heat Surface
       const geoLayer = L.geoJSON(surfaceGeoJson, {
         pointToLayer: (feature: any, latlng: any) => {
           const rawAqi = feature.properties?.aqi || feature.properties?.estimated_aqi || 200;
@@ -111,15 +111,16 @@ export const AqiMap: React.FC<AqiMapProps> = ({
           const color = getCpcbColor(aqi);
 
           const circle = L.circleMarker(latlng, {
-            radius: 22,
+            radius: 42,
             fillColor: color,
             fillOpacity: 0.38,
             stroke: false,
+            className: 'aqi-surface-cell',
           });
 
           const category = feature.properties?.category || 'Moderate';
           circle.bindTooltip(`
-            <div style="font-family: sans-serif; font-size: 11px; padding: 2px 4px;">
+            <div style="font-family: sans-serif; font-size: 11px; padding: 3px 6px;">
               <span style="font-weight: 800; color: ${color};">${aqi} AQI</span>
               <span style="color: #64748b;"> • ${category}</span>
             </div>
@@ -132,7 +133,7 @@ export const AqiMap: React.FC<AqiMapProps> = ({
     }
   }, [surfaceGeoJson, activeLayers.surface]);
 
-  // Update Monitoring Stations (Clean Elevated Badges)
+  // Update Monitoring Stations (Clean Elevated Badges With Ring Beacon)
   useEffect(() => {
     if (!mapInstanceRef.current || !stationsLayerRef.current) return;
     stationsLayerRef.current.clearLayers();
@@ -146,26 +147,27 @@ export const AqiMap: React.FC<AqiMapProps> = ({
         const city = station.city || 'Delhi NCR';
 
         const markerHtml = `
-          <div style="background-color: ${color}; color: white; padding: 3px 8px; border-radius: 9999px; font-weight: 700; font-size: 11px; box-shadow: 0 4px 12px rgba(0,0,0,0.22); border: 2px solid white; display: flex; align-items: center; justify-content: center; white-space: nowrap; font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-            ${aqi}
+          <div style="background-color: ${color}; color: white; padding: 4px 10px; border-radius: 9999px; font-weight: 800; font-size: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.25); border: 2.5px solid white; display: flex; align-items: center; gap: 4px; white-space: nowrap; font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.12)'" onmouseout="this.style.transform='scale(1)'">
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: white; opacity: 0.9;"></span>
+            <span>${aqi}</span>
           </div>
         `;
 
         const customIcon = L.divIcon({
           html: markerHtml,
           className: 'station-marker',
-          iconSize: [44, 26],
-          iconAnchor: [22, 13],
+          iconSize: [52, 28],
+          iconAnchor: [26, 14],
         });
 
         const marker = L.marker([station.latitude, station.longitude], { icon: customIcon });
         marker.bindPopup(`
-          <div style="font-family: sans-serif; font-size: 12px; padding: 6px; min-width: 180px;">
-            <div style="font-weight: 700; color: #0f172a; margin-bottom: 2px;">${station.station_name}</div>
+          <div style="font-family: sans-serif; font-size: 12px; padding: 6px; min-width: 200px;">
+            <div style="font-weight: 800; color: #0f172a; margin-bottom: 2px;">${station.station_name}</div>
             <div style="color: #64748b; font-size: 11px; margin-bottom: 8px;">${city} (Official CAAQMS)</div>
-            <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 6px 8px; border-radius: 8px; border: 1px solid #e2e8f0;">
-              <span style="font-size: 15px; font-weight: 800; color: ${color};">${aqi} AQI</span>
-              <span style="background: white; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 11px; border: 1px solid #cbd5e1;">${dominant}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 6px 10px; border-radius: 10px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 16px; font-weight: 800; color: ${color};">${aqi} AQI</span>
+              <span style="background: white; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; border: 1px solid #cbd5e1;">${dominant}</span>
             </div>
           </div>
         `);
@@ -182,8 +184,8 @@ export const AqiMap: React.FC<AqiMapProps> = ({
     if (activeLayers.discovery && discoveredDevices.length > 0) {
       discoveredDevices.forEach((device) => {
         const markerHtml = `
-          <div style="background-color: #2563eb; color: white; width: 30px; height: 30px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37,99,235,0.35); border: 2px solid white; cursor: pointer; transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <div style="background-color: #2563eb; color: white; width: 34px; height: 34px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(37,99,235,0.4); border: 2.5px solid white; cursor: pointer; transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.12)'" onmouseout="this.style.transform='scale(1)'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/>
               <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/>
               <circle cx="12" cy="12" r="2"/>
@@ -196,17 +198,17 @@ export const AqiMap: React.FC<AqiMapProps> = ({
         const customIcon = L.divIcon({
           html: markerHtml,
           className: 'discovery-marker',
-          iconSize: [30, 30],
-          iconAnchor: [15, 15],
+          iconSize: [34, 34],
+          iconAnchor: [17, 17],
         });
 
         const marker = L.marker([device.approx_latitude, device.approx_longitude], { icon: customIcon });
         marker.bindPopup(`
-          <div style="font-family: sans-serif; font-size: 12px; padding: 6px; max-width: 210px;">
-            <div style="font-weight: 700; color: #0f172a; margin-bottom: 2px;">${device.name}</div>
-            <div style="color: #2563eb; font-weight: 600; font-size: 11px; margin-bottom: 4px;">${device.model_type}</div>
+          <div style="font-family: sans-serif; font-size: 12px; padding: 6px; max-width: 220px;">
+            <div style="font-weight: 800; color: #0f172a; margin-bottom: 2px;">${device.name}</div>
+            <div style="color: #2563eb; font-weight: 700; font-size: 11px; margin-bottom: 4px;">${device.model_type}</div>
             <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">Distance: ~${device.distance_km.toFixed(1)} km away</div>
-            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 6px; font-size: 10px; color: #475569;">
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; font-size: 10px; color: #475569;">
               🔒 Location Masked (300m Fuzzing). Telemetry Is Private.
             </div>
           </div>
@@ -217,44 +219,58 @@ export const AqiMap: React.FC<AqiMapProps> = ({
   }, [discoveredDevices, activeLayers.discovery]);
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="relative w-full h-[calc(100vh-5rem)] overflow-hidden">
       {/* Map Canvas Container */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-      {/* Floating Layer Controls (Top Right With Generous Padding) */}
-      <div className="absolute top-5 right-5 z-10 flex flex-col gap-2">
-        <div className="bg-white/95 backdrop-blur-md rounded-2xl p-4 border border-slate-200/80 shadow-xl shadow-slate-900/5 min-w-[210px]">
-          <div className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2.5 flex items-center gap-2">
-            <Layers className="w-3.5 h-3.5 text-blue-600" />
-            Map Layers
+      {/* Floating Layer Controls (Top Right With Generous 24px Margin & Padding) */}
+      <div className="absolute top-6 right-6 z-10 flex flex-col gap-2">
+        <div className="bg-white/95 backdrop-blur-md rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xl shadow-slate-900/10 min-w-[240px]">
+          <div className="text-xs font-black text-slate-800 uppercase tracking-wider mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sliders className="w-4 h-4 text-blue-600" />
+              Map Layers
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+              Filter
+            </span>
           </div>
-          <div className="space-y-2 text-xs">
-            <label className="flex items-center gap-2.5 cursor-pointer text-slate-700 hover:text-slate-900 hover:bg-slate-50 p-1.5 rounded-lg transition-colors">
+          <div className="space-y-1.5 text-xs">
+            <label className="flex items-center justify-between cursor-pointer text-slate-700 hover:text-slate-900 hover:bg-slate-50 px-2.5 py-2 rounded-xl transition-colors font-medium">
+              <span className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 shrink-0"></span>
+                AQI Heatmap Surface (Model 3)
+              </span>
               <input
                 type="checkbox"
                 checked={activeLayers.surface}
                 onChange={(e) => setActiveLayers((prev) => ({ ...prev, surface: e.target.checked }))}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
               />
-              AQI Heatmap Surface (Model 3)
             </label>
-            <label className="flex items-center gap-2.5 cursor-pointer text-slate-700 hover:text-slate-900 hover:bg-slate-50 p-1.5 rounded-lg transition-colors">
+            <label className="flex items-center justify-between cursor-pointer text-slate-700 hover:text-slate-900 hover:bg-slate-50 px-2.5 py-2 rounded-xl transition-colors font-medium">
+              <span className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></span>
+                Physical Stations (38 CAAQMS)
+              </span>
               <input
                 type="checkbox"
                 checked={activeLayers.stations}
                 onChange={(e) => setActiveLayers((prev) => ({ ...prev, stations: e.target.checked }))}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
               />
-              Physical Stations (38 CAAQMS)
             </label>
-            <label className="flex items-center gap-2.5 cursor-pointer text-slate-700 hover:text-slate-900 hover:bg-slate-50 p-1.5 rounded-lg transition-colors">
+            <label className="flex items-center justify-between cursor-pointer text-slate-700 hover:text-slate-900 hover:bg-slate-50 px-2.5 py-2 rounded-xl transition-colors font-medium">
+              <span className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                Community Devices
+              </span>
               <input
                 type="checkbox"
                 checked={activeLayers.discovery}
                 onChange={(e) => setActiveLayers((prev) => ({ ...prev, discovery: e.target.checked }))}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
               />
-              Community Devices
             </label>
           </div>
         </div>
@@ -262,18 +278,18 @@ export const AqiMap: React.FC<AqiMapProps> = ({
 
       {/* Floating Point Inspector (Top Left) */}
       {selectedEstimate && (
-        <div className="absolute top-5 left-5 z-20">
+        <div className="absolute top-6 left-6 z-20">
           <PointInspector estimate={selectedEstimate} onClose={() => setSelectedEstimate(null)} />
         </div>
       )}
 
-      {/* Floating AQI Legend (Bottom Center With Generous Padding) */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-4 pointer-events-auto">
+      {/* Floating AQI Legend (Bottom Center With 32px Floor Margin) */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 w-full max-w-2xl px-4 pointer-events-auto">
         <AqiLegend />
       </div>
 
-      {/* Click To Inspect Banner (Bottom Left) */}
-      <div className="absolute bottom-6 left-6 z-10 hidden md:flex items-center gap-2.5 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-900/5 text-xs font-semibold text-slate-700">
+      {/* Click To Inspect Banner (Bottom Left With 32px Floor Margin) */}
+      <div className="absolute bottom-8 left-6 z-10 hidden md:flex items-center gap-3 bg-white/95 backdrop-blur-md px-5 py-3 rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-900/10 text-xs font-bold text-slate-800">
         <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
         Click Anywhere On Map To Query Model 3 Spatial AQI
       </div>
